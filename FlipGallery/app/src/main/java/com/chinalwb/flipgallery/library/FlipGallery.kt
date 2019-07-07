@@ -6,6 +6,9 @@ import android.animation.ObjectAnimator
 import android.animation.PropertyValuesHolder
 import android.content.Context
 import android.graphics.*
+import android.graphics.drawable.Drawable
+import android.os.Handler
+import android.os.HandlerThread
 import android.util.AttributeSet
 import android.util.Log
 import android.util.LruCache
@@ -13,6 +16,12 @@ import android.view.MotionEvent
 import android.view.VelocityTracker
 import android.view.View
 import android.view.ViewConfiguration
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.target.BitmapImageViewTarget
+import com.bumptech.glide.request.target.CustomTarget
+import com.bumptech.glide.request.target.CustomViewTarget
+import com.bumptech.glide.request.target.SimpleTarget
+import com.bumptech.glide.request.transition.Transition
 import com.chinalwb.flipgallery.R
 import kotlin.math.*
 
@@ -640,15 +649,60 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
         return this
     }
 
+    fun setUrls(urls: Array<String>): FlipGallery {
+        this.urls = urls as Array<String?>
+        this.max = urls.size
+        return this
+    }
+
     private fun loadBitmap(bitmapIndex: Int): Bitmap? {
         if (bitmapIndex >= this.max) {
             return null
         }
         var bitmap = lruCache.get(bitmapIndex)
+        fun loadBitmapFromDataSet (bitmapIndex: Int): Bitmap? {
+            if (this.resIds.isNotEmpty()) {
+                return Utils.getBitmap(context.resources, this.resIds[bitmapIndex]!!, width)
+            }
+            if (this.urls.isNotEmpty()) {
+                if (this.urls[bitmapIndex] != null && this.urls[bitmapIndex]!!.isNotEmpty()) {
+                    glideHandler!!.post {
+                        Glide.with(this)
+                            .asBitmap()
+                            .load(this.urls[bitmapIndex])
+                            .override(width, height)
+                            .centerCrop()
+                            .into(object : CustomTarget<Bitmap>() {
+                                override fun onLoadCleared(placeholder: Drawable?) {
+                                }
+
+                                override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                                    if (bitmapIndex == null) {
+                                        Log.e("XX", "bitmap index is null!!")
+                                        return
+                                    }
+                                    lruCache.put(bitmapIndex, resource)
+                                    handler.post { invalidate() }
+                                }
+                            })
+                    }
+                }
+
+                return Utils.getBitmap(context.resources, R.drawable.loading, width)
+            }
+            return null
+        }
         if (bitmap == null) {
-            bitmap = Utils.getBitmap(context.resources, this.resIds[bitmapIndex]!!, width)
+            bitmap = loadBitmapFromDataSet(bitmapIndex)
             lruCache.put(bitmapIndex, bitmap)
         }
         return bitmap
+    }
+
+    private var handlerThread = HandlerThread("GlideLoader")
+    private var glideHandler: Handler? = null
+    init {
+        handlerThread.start()
+        glideHandler = Handler(handlerThread.looper)
     }
 }

@@ -22,8 +22,18 @@ class MainActivity : AppCompatActivity() {
             R.drawable.z
         )).setFlipDuration(300).setFlipIndex(0)
 
+        flipGallery.setUrls(arrayOf(
+            "http://ww1.sinaimg.cn/large/0065oQSqly1g2pquqlp0nj30n00yiq8u.jpg",
+            "https://ww1.sinaimg.cn/large/0065oQSqly1g2hekfwnd7j30sg0x4djy.jpg",
+            "https://ws1.sinaimg.cn/large/0065oQSqly1g0ajj4h6ndj30sg11xdmj.jpg",
+            "https://ws1.sinaimg.cn/large/0065oQSqly1fytdr77urlj30sg10najf.jpg",
+            "https://ws1.sinaimg.cn/large/0065oQSqly1fymj13tnjmj30r60zf79k.jpg",
+            "https://ws1.sinaimg.cn/large/0065oQSqgy1fy58bi1wlgj30sg10hguu.jpg",
+            "https://ws1.sinaimg.cn/large/0065oQSqgy1fxno2dvxusj30sf10nqcm.jpg"
+        )).setFlipDuration(300).setFlipIndex(3)
+
         flipGallery.postDelayed({
-            flipGallery.smoothFlipToIndex(10, 4000)
-        }, 1000)
+            flipGallery.smoothFlipToIndex(0, 7000)
+        }, 12000)
     }
 }
