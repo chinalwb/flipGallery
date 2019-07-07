@@ -7,13 +7,12 @@ import android.animation.PropertyValuesHolder
 import android.content.Context
 import android.graphics.*
 import android.util.AttributeSet
-import android.util.Log
 import android.view.MotionEvent
+import android.view.VelocityTracker
 import android.view.View
+import android.view.ViewConfiguration
 import com.chinalwb.flipgallery.R
 import kotlin.math.*
-
-private var flipDuration = 1000L
 
 class FlipGallery (context: Context, attributeSet: AttributeSet) : View (context, attributeSet) {
 
@@ -21,15 +20,15 @@ class FlipGallery (context: Context, attributeSet: AttributeSet) : View (context
         private const val NINETY_DEGREE = 89.99F
     }
 
+    var flipDuration = 1000L
     private var paint: Paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private var camera = Camera()
     private var cx = 0F
     private var cy = 0F
 
+    private var velocityTracker = VelocityTracker.obtain()
+    private var viewConfiguration: ViewConfiguration = ViewConfiguration.get(context)
     // Default
-    private var upDegree = arrayOf(0F, 0F, -180F)
-    private var downDegree = arrayOf(180F, 0F, 0F)
-
     private var upDegree0 = 0F
         set(value) {
             field = value
@@ -278,15 +277,28 @@ class FlipGallery (context: Context, attributeSet: AttributeSet) : View (context
     }
 
     private var downY = 0F
+    private var dy = 0F
 
     override fun onTouchEvent(event: MotionEvent?): Boolean {
+        if (event!!.actionMasked == MotionEvent.ACTION_DOWN) {
+            velocityTracker.clear()
+        }
+        velocityTracker.addMovement(event)
+
         when (event!!.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 downY = event.y
             }
             MotionEvent.ACTION_MOVE -> {
                 val offsetY = event.y - downY
-                if (offsetY > 0) {
+                if (dy == 0F) {
+                    dy = offsetY
+                }
+                if (abs(offsetY) > viewConfiguration.scaledPagingTouchSlop) {
+                    parent.requestDisallowInterceptTouchEvent(true)
+                }
+
+                if (offsetY > 0 && dy > 0) {
                     // 从上往下翻 -- 上一页
                     upDegree1 = - offsetY / cy * 180
                     if (index > 0) {
@@ -307,7 +319,9 @@ class FlipGallery (context: Context, attributeSet: AttributeSet) : View (context
                     if (upDegree1 < -90) {
                         upDegree1 = -90F
                     }
-                } else {
+                }
+
+                if (offsetY < 0 && dy < 0) {
                     // 从下往上翻 -- 下一页
                     downDegree1 = - offsetY / cy * 180
                     if (index < max - 1) {
@@ -332,125 +346,187 @@ class FlipGallery (context: Context, attributeSet: AttributeSet) : View (context
                 invalidate()
             }
             MotionEvent.ACTION_UP -> {
-                if (abs(upDegree1) > NINETY_DEGREE) {
-                    animationPrev()
-                } else if (abs(upDegree1) > 0) {
-                    animationPrevReset()
+                velocityTracker.computeCurrentVelocity(1000, viewConfiguration
+                    .scaledMaximumFlingVelocity.toFloat())
+                var yVelocity = velocityTracker.yVelocity
+                if (abs(yVelocity) < viewConfiguration.scaledMinimumFlingVelocity) {
+                    if (abs(upDegree1) > NINETY_DEGREE) {
+                        animationPrev()
+                    } else if (abs(upDegree1) > 0) {
+                        animationPrevReset()
+                    }
+
+                    if (abs(downDegree1) > NINETY_DEGREE) {
+                        animationNext()
+                    } else if (abs(downDegree1) > 0) {
+                        animationNextReset()
+                    }
+                } else {
+                    if (yVelocity > 0) {
+                        if (index == 0) {
+                            animationPrevReset()
+                        } else {
+                            if (dy > 0) {
+                                animationPrev()
+                            } else {
+                                // 用户先从下往上滑动 (翻到下一页的动作)
+                                // 然后手指不离开屏幕, 快速从上往下滑动
+                                // 此时 dy (最初移动方向) 是小于 0 的(即从下往上滑动的情况)
+                                // 应该恢复滑动到下一页的状态
+                                animationNextReset()
+                            }
+                        }
+                    } else {
+                        if (index == max - 1) {
+                            animationNextReset()
+                        } else {
+                            if (dy < 0) {
+                                animationNext()
+                            } else {
+                                // 用户先从上往下滑动 (翻到上一页的动作)
+                                // 然后手指不离开屏幕, 快速从下往上滑动
+                                // 此时 dy (最初移动方向) 是大于 0 的(即从上往下滑动的情况)
+                                // 应该恢复滑动到上一页的状态
+                                animationPrevReset()
+                            }
+                        }
+                    }
                 }
 
-                if (abs(downDegree1) > NINETY_DEGREE) {
-                    animationNext()
-                } else if (abs(downDegree1) > 0) {
-                    animationNextReset()
-                }
+                dy = 0F
             }
         }
         return true
     }
 
+    private var prevAnimator: ObjectAnimator? = null
+    private var prevAnimatorReset: ObjectAnimator? = null
+    private var nextAnimator: ObjectAnimator? = null
+    private var nextAnimatorReset: ObjectAnimator? = null
+
+    private var prevAnimatorListener = object : AnimatorListenerAdapter() {
+        override fun onAnimationEnd(animation: Animator?) {
+            if (index > 0) {
+                index--
+            }
+            reset()
+        }
+    }
+
+    private var prevAnimatorResetListener = object : AnimatorListenerAdapter() {
+        override fun onAnimationEnd(animation: Animator?) {
+            reset()
+        }
+    }
+
+    private var nextAnimatorListener = object : AnimatorListenerAdapter() {
+        override fun onAnimationEnd(animation: Animator?) {
+            if (index < max - 1) {
+                index++
+            }
+            reset()
+        }
+    }
+
+    private var nextAnimatorListenerReset = object : AnimatorListenerAdapter() {
+        override fun onAnimationEnd(animation: Animator?) {
+            reset()
+        }
+    }
+
+
     /**
      * 翻到上一页, 动画
      */
     private fun animationPrev() {
-        val upDegree1ValueHolder = PropertyValuesHolder.ofFloat("upDegree1", upDegree1, -180F)
-        val downDegree0ValueHolder = PropertyValuesHolder.ofFloat("downDegree0", downDegree0, 0F)
+        if (prevAnimator == null) {
+            val upDegree1ValueHolder = PropertyValuesHolder.ofFloat("upDegree1", upDegree1, -180F)
+            val downDegree0ValueHolder = PropertyValuesHolder.ofFloat("downDegree0", downDegree0, 0F)
 
-        val upAlpha0ValueHolder = PropertyValuesHolder.ofInt("upAlpha0", upAlpha0, 255)
-        val downAlpha1ValueHolder = PropertyValuesHolder.ofInt("downAlpha1", downAlpha1, 0)
+            val upAlpha0ValueHolder = PropertyValuesHolder.ofInt("upAlpha0", upAlpha0, 255)
+            val downAlpha1ValueHolder = PropertyValuesHolder.ofInt("downAlpha1", downAlpha1, 0)
 
-        val objectAnimator = ObjectAnimator.ofPropertyValuesHolder(
+            prevAnimator = ObjectAnimator.ofPropertyValuesHolder(
                 this,
                 upDegree1ValueHolder,
                 downDegree0ValueHolder,
                 upAlpha0ValueHolder,
                 downAlpha1ValueHolder
-        )
+            )
+            prevAnimator!!.addListener(prevAnimatorListener)
+        }
 
-        objectAnimator.duration = flipDuration
-        objectAnimator.addListener(object : AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: Animator?) {
-                if (index > 0) {
-                    index--
-                }
-                reset()
-            }
-        })
-        objectAnimator.start()
+        prevAnimator!!.duration = flipDuration
+        prevAnimator!!.start()
     }
 
     /**
      * 翻到上一页, 复原动画
      */
     private fun animationPrevReset() {
-        val upDegree1ValueHolder = PropertyValuesHolder.ofFloat("upDegree1", upDegree1, 0F)
-        val downDegree0ValueHolder = PropertyValuesHolder.ofFloat("downDegree0", downDegree0, 180F)
+        if (prevAnimatorReset == null) {
+            val upDegree1ValueHolder = PropertyValuesHolder.ofFloat("upDegree1", upDegree1, 0F)
+            val downDegree0ValueHolder = PropertyValuesHolder.ofFloat("downDegree0", downDegree0, 180F)
 
-        val upAlpha0ValueHolder = PropertyValuesHolder.ofInt("upAlpha0", upAlpha0, 0)
+            val upAlpha0ValueHolder = PropertyValuesHolder.ofInt("upAlpha0", upAlpha0, 0)
 
-        val objectAnimator = ObjectAnimator.ofPropertyValuesHolder(
+            prevAnimatorReset = ObjectAnimator.ofPropertyValuesHolder(
                 this,
                 upDegree1ValueHolder,
                 downDegree0ValueHolder,
                 upAlpha0ValueHolder
-        )
-        objectAnimator.duration = flipDuration
-        objectAnimator.addListener(object : AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: Animator?) {
-                reset()
-            }
-        })
-        objectAnimator.start()
+            )
+            prevAnimatorReset!!.addListener(prevAnimatorResetListener)
+        }
+
+        prevAnimatorReset!!.duration = flipDuration
+        prevAnimatorReset!!.start()
     }
 
     /**
      * 翻到下一页, 动画
      */
     private fun animationNext() {
-        val downDegree1ValueHolder = PropertyValuesHolder.ofFloat("downDegree1", downDegree1, 180F)
-        val upDegree2ValueHolder = PropertyValuesHolder.ofFloat("upDegree2", upDegree2, 0F)
+        if (nextAnimator == null) {
+            val downDegree1ValueHolder = PropertyValuesHolder.ofFloat("downDegree1", downDegree1, 180F)
+            val upDegree2ValueHolder = PropertyValuesHolder.ofFloat("upDegree2", upDegree2, 0F)
 
-        val upAlpha1ValueHolder = PropertyValuesHolder.ofInt("upAlpha1", upAlpha1, 0)
+            val upAlpha1ValueHolder = PropertyValuesHolder.ofInt("upAlpha1", upAlpha1, 0)
 
-        val objectAnimator = ObjectAnimator.ofPropertyValuesHolder(
+            nextAnimator = ObjectAnimator.ofPropertyValuesHolder(
                 this,
                 downDegree1ValueHolder,
                 upDegree2ValueHolder,
                 upAlpha1ValueHolder
-        )
-        objectAnimator.duration = flipDuration
-        objectAnimator.addListener(object : AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: Animator?) {
-                if (index < max - 1) {
-                    index++
-                }
-                reset()
-            }
-        })
-        objectAnimator.start()
+            )
+            nextAnimator!!.addListener(nextAnimatorListener)
+        }
+
+        nextAnimator!!.duration = flipDuration
+        nextAnimator!!.start()
     }
 
     /**
      * 翻到下一页, 复原动画
      */
     private fun animationNextReset() {
-        val downDegree1ValueHolder = PropertyValuesHolder.ofFloat("downDegree1", downDegree1, 0F)
-        val upDegree2ValueHolder = PropertyValuesHolder.ofFloat("upDegree2", upDegree2, -180F)
+        if (nextAnimatorReset == null) {
+            val downDegree1ValueHolder = PropertyValuesHolder.ofFloat("downDegree1", downDegree1, 0F)
+            val upDegree2ValueHolder = PropertyValuesHolder.ofFloat("upDegree2", upDegree2, -180F)
 
-        val downAlpha2ValueHolder = PropertyValuesHolder.ofInt("downAlpha2", downAlpha2, 0)
+            val downAlpha2ValueHolder = PropertyValuesHolder.ofInt("downAlpha2", downAlpha2, 0)
 
-        val objectAnimator = ObjectAnimator.ofPropertyValuesHolder(
+            nextAnimatorReset = ObjectAnimator.ofPropertyValuesHolder(
                 this,
                 downDegree1ValueHolder,
                 upDegree2ValueHolder,
                 downAlpha2ValueHolder
-        )
-        objectAnimator.duration = flipDuration
-        objectAnimator.addListener(object : AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: Animator?) {
-                reset()
-            }
-        })
-        objectAnimator.start()
+            )
+            nextAnimatorReset!!.addListener(nextAnimatorListenerReset)
+        }
+
+        nextAnimatorReset!!.duration = flipDuration
+        nextAnimatorReset!!.start()
     }
 
     private fun reset() {
