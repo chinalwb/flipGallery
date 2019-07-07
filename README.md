@@ -60,3 +60,6 @@ TODO 正在上传到 jcenter
 
 
 
+### 还可以手动操作
+
+![manually](./resources/manually.gif)
