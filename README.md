@@ -1,4 +1,4 @@
-# flipGallery
+
 ![FlipGallery](./resources/adv.png)
 
 
