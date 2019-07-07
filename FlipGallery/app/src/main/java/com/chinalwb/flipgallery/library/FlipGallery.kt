@@ -7,6 +7,7 @@ import android.animation.PropertyValuesHolder
 import android.content.Context
 import android.graphics.*
 import android.util.AttributeSet
+import android.util.Log
 import android.view.MotionEvent
 import android.view.VelocityTracker
 import android.view.View
@@ -14,13 +15,17 @@ import android.view.ViewConfiguration
 import com.chinalwb.flipgallery.R
 import kotlin.math.*
 
-class FlipGallery (context: Context, attributeSet: AttributeSet) : View (context, attributeSet) {
+class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, attributeSet) {
 
     companion object {
         private const val NINETY_DEGREE = 89.99F
     }
 
-    var flipDuration = 1000L
+    private var flipDuration = 1000L
+    private var index = 0
+    private var max = 3
+    private var bitmaps: Array<Bitmap?> = arrayOfNulls(3)
+
     private var paint: Paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private var camera = Camera()
     private var cx = 0F
@@ -96,10 +101,6 @@ class FlipGallery (context: Context, attributeSet: AttributeSet) : View (context
             field = value
             invalidate()
         }
-
-    private var index = 0
-    private var max = 3
-    private var bitmaps: Array<Bitmap?> = arrayOfNulls(3)
 
     init {
         // -200 这个z轴高度实在尴尬
@@ -217,7 +218,11 @@ class FlipGallery (context: Context, attributeSet: AttributeSet) : View (context
             paint.alpha = downAlpha1
             var bottomTopOffset = 0F
             if (downDegree0 < 90) {
-                var halfHeight = if (index > 0) { bitmaps[index - 1]!!.height / 2F } else { cy }
+                var halfHeight = if (index > 0) {
+                    bitmaps[index - 1]!!.height / 2F
+                } else {
+                    cy
+                }
                 bottomTopOffset = halfHeight * (cos(Math.toRadians(downDegree0.toDouble())).toFloat())
             }
             canvas!!.save()
@@ -300,7 +305,7 @@ class FlipGallery (context: Context, attributeSet: AttributeSet) : View (context
 
                 if (offsetY > 0 && dy > 0) {
                     // 从上往下翻 -- 上一页
-                    upDegree1 = - offsetY / cy * 180
+                    upDegree1 = -offsetY / cy * 180
                     if (index > 0) {
                         var absDegree = abs(upDegree1)
                         if (absDegree > 90) {
@@ -310,7 +315,7 @@ class FlipGallery (context: Context, attributeSet: AttributeSet) : View (context
                         upAlpha0 = (absDegree / 90 * 255).toInt() // 0 -> 255
                         downDegree0 = upDegree1 + 180
                         if (downDegree0 < 0) {
-                            downDegree0= 0F
+                            downDegree0 = 0F
                         }
                     }
                     if (index == 0) {
@@ -323,7 +328,7 @@ class FlipGallery (context: Context, attributeSet: AttributeSet) : View (context
 
                 if (offsetY < 0 && dy < 0) {
                     // 从下往上翻 -- 下一页
-                    downDegree1 = - offsetY / cy * 180
+                    downDegree1 = -offsetY / cy * 180
                     if (index < max - 1) {
                         var absDegree = abs(downDegree1)
                         if (absDegree > 90) {
@@ -346,8 +351,10 @@ class FlipGallery (context: Context, attributeSet: AttributeSet) : View (context
                 invalidate()
             }
             MotionEvent.ACTION_UP -> {
-                velocityTracker.computeCurrentVelocity(1000, viewConfiguration
-                    .scaledMaximumFlingVelocity.toFloat())
+                velocityTracker.computeCurrentVelocity(
+                    1000, viewConfiguration
+                        .scaledMaximumFlingVelocity.toFloat()
+                )
                 var yVelocity = velocityTracker.yVelocity
                 if (abs(yVelocity) < viewConfiguration.scaledMinimumFlingVelocity) {
                     if (abs(upDegree1) > NINETY_DEGREE) {
@@ -548,5 +555,75 @@ class FlipGallery (context: Context, attributeSet: AttributeSet) : View (context
         downAlpha0 = 255
         downAlpha1 = 255
         downAlpha2 = 255
+    }
+
+    fun setFlipIndex(flipIndex: Int): FlipGallery {
+        this.index = flipIndex
+        return this
+    }
+
+    fun setFlipDuration(flipDuration: Long): FlipGallery {
+        this.flipDuration = flipDuration
+        return this
+    }
+
+    fun flipToIndex(flipToIndex: Int) {
+        this.index = flipToIndex
+        invalidate()
+    }
+
+    fun smoothFlipToIndex(flipToIndex: Int, duration: Long) {
+        var targetIndex = flipToIndex
+        if (targetIndex > max - 1) {
+            targetIndex = max - 1
+        }
+        if (targetIndex < 0) {
+            targetIndex = 0
+        }
+
+        if (this.index == targetIndex) {
+            return
+        }
+        var indexOffset = targetIndex - this.index
+        var interval = (duration / abs(indexOffset).toFloat()).toLong()
+        var currentFlipDuration = this.flipDuration
+
+        this.flipDuration = interval - 50
+        fun doFlip() {
+            if (this.index != targetIndex) {
+                if (indexOffset > 0) {
+                    animationNext()
+                } else {
+                    animationPrev()
+                }
+                postDelayed({ doFlip() }, interval)
+            } else {
+                this.flipDuration = currentFlipDuration
+            }
+        }
+
+        postDelayed({ doFlip() }, interval)
+    }
+
+    fun smoothFlipToStart() {
+        this.smoothFlipToStart(this.flipDuration * this.index)
+    }
+
+    fun smoothFlipToStart(duration: Long) {
+        if (this.index == 0) {
+            return
+        }
+        this.smoothFlipToIndex(0, duration)
+    }
+
+    fun smoothFlipToEnd() {
+        this.smoothFlipToEnd(this.flipDuration * (max - 1 - this.index))
+    }
+
+    fun smoothFlipToEnd(duration: Long) {
+        if (this.index == max - 1) {
+            return
+        }
+        this.smoothFlipToIndex(max - 1, duration)
     }
 }

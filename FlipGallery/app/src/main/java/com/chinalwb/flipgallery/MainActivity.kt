@@ -11,6 +11,10 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         var flipGallery = findViewById<FlipGallery>(R.id.flip_gallery)
-        flipGallery.flipDuration = 300
+        flipGallery.setFlipDuration(300).setFlipIndex(0)
+
+        flipGallery.postDelayed({
+            flipGallery.smoothFlipToEnd(6000)
+        }, 1000)
     }
 }
