@@ -8,6 +8,7 @@ import android.content.Context
 import android.graphics.*
 import android.util.AttributeSet
 import android.util.Log
+import android.util.LruCache
 import android.view.MotionEvent
 import android.view.VelocityTracker
 import android.view.View
@@ -23,8 +24,10 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
 
     private var flipDuration = 1000L
     private var index = 0
-    private var max = 3
-    private var bitmaps: Array<Bitmap?> = arrayOfNulls(3)
+    private var max = 0
+    private var resIds: Array<Int?> = arrayOfNulls(0)
+    private var urls: Array<String?> = arrayOfNulls(0)
+    private var lruCache = LruCache<Int, Bitmap>(10)
 
     private var paint: Paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private var camera = Camera()
@@ -96,7 +99,7 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
             field = value
             invalidate()
         }
-    private var downAlpha2 = 255
+    private var downAlpha2 = 0
         set(value) {
             field = value
             invalidate()
@@ -121,9 +124,6 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        bitmaps[0] = Utils.getBitmap(context.resources, R.drawable.y, width)
-        bitmaps[1] = Utils.getBitmap(context.resources, R.drawable.x, width)
-        bitmaps[2] = Utils.getBitmap(context.resources, R.drawable.z, width)
 
         cx = width / 2F
         cy = height / 2F
@@ -131,6 +131,12 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
 
     override fun onDraw(canvas: Canvas?) {
         super.onDraw(canvas)
+
+        if (this.max == 0) {
+            paint.alpha = 255
+            canvas!!.drawText("尚未设置数据源", cx, cy, paint)
+            return
+        }
 
         if (index == 0 && upDegree1 < 0) {
             paint.alpha = 255
@@ -154,7 +160,7 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
             return
         }
         // bitmap previous
-        val previousBitmap = bitmaps[index - 1]
+        val previousBitmap = loadBitmap(index - 1) ?: return
         var top1 = (height - previousBitmap!!.height) / 2F
         if (abs(upDegree1) > 0 || abs(downDegree1) > 90) {
             paint.alpha = upAlpha0
@@ -194,9 +200,8 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
         // bitmap current
         // bitmap current upper
         paint.alpha = upAlpha1
-        val currentBitmap = bitmaps[index]
+        val currentBitmap = loadBitmap(index) ?: return
         var top = (height - currentBitmap!!.height) / 2F
-
 
         if (upDegree1 < -NINETY_DEGREE) {
             upDegree1 = -90F
@@ -219,7 +224,7 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
             var bottomTopOffset = 0F
             if (downDegree0 < 90) {
                 var halfHeight = if (index > 0) {
-                    bitmaps[index - 1]!!.height / 2F
+                    loadBitmap(index - 1)!!.height / 2F
                 } else {
                     cy
                 }
@@ -243,7 +248,7 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
             return
         }
         // bitmap next
-        val nextBitmap = bitmaps[index + 1]
+        val nextBitmap = loadBitmap(index + 1) ?: return
         var top = (height - nextBitmap!!.height) / 2F
         if (downDegree1 > NINETY_DEGREE) {
             paint.alpha = upAlpha2
@@ -262,7 +267,7 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
         // bitmap next
         // bitmap next lower
         if (downDegree1 > 0) {
-            var halfHeight = bitmaps[index]!!.height / 2F
+            var halfHeight = loadBitmap(index)!!.height / 2F
             var bottomTopOffset = halfHeight * cos(Math.toRadians(abs(downDegree1.toDouble()))).toFloat()
             if (bottomTopOffset < 0) {
                 bottomTopOffset = 0F
@@ -498,12 +503,14 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
             val downDegree1ValueHolder = PropertyValuesHolder.ofFloat("downDegree1", downDegree1, 180F)
             val upDegree2ValueHolder = PropertyValuesHolder.ofFloat("upDegree2", upDegree2, 0F)
 
+            val downAlpha2ValueHolder = PropertyValuesHolder.ofInt("downAlpha2", downAlpha2, 255)
             val upAlpha1ValueHolder = PropertyValuesHolder.ofInt("upAlpha1", upAlpha1, 0)
 
             nextAnimator = ObjectAnimator.ofPropertyValuesHolder(
                 this,
                 downDegree1ValueHolder,
                 upDegree2ValueHolder,
+                downAlpha2ValueHolder,
                 upAlpha1ValueHolder
             )
             nextAnimator!!.addListener(nextAnimatorListener)
@@ -554,7 +561,7 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
 
         downAlpha0 = 255
         downAlpha1 = 255
-        downAlpha2 = 255
+        downAlpha2 = 0
     }
 
     fun setFlipIndex(flipIndex: Int): FlipGallery {
@@ -625,5 +632,23 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
             return
         }
         this.smoothFlipToIndex(max - 1, duration)
+    }
+
+    fun setResIds(resIds: Array<Int>): FlipGallery {
+        this.resIds = resIds as Array<Int?>
+        this.max = resIds.size
+        return this
+    }
+
+    private fun loadBitmap(bitmapIndex: Int): Bitmap? {
+        if (bitmapIndex >= this.max) {
+            return null
+        }
+        var bitmap = lruCache.get(bitmapIndex)
+        if (bitmap == null) {
+            bitmap = Utils.getBitmap(context.resources, this.resIds[bitmapIndex]!!, width)
+            lruCache.put(bitmapIndex, bitmap)
+        }
+        return bitmap
     }
 }
