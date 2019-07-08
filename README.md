@@ -22,9 +22,7 @@
 ### 使用
 
 ```groovy
-implementation 'com.github.chinalwb:flipgallery:1.0' 
-
-jcenter 正在审核
+implementation 'com.github.chinalwb:flipgallery:1.1' 
 ```
 
 
