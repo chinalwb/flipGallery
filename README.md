@@ -82,7 +82,7 @@ jcenter 正在审核
 
 
 
-### 也可以这样玩 glide
+### 也可以这样玩 glide (图片来自干货集中营)
 
 ![glide](./resources/glide.gif)
 
