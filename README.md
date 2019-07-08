@@ -2,11 +2,14 @@
 ![FlipGallery](./resources/adv.png)
 
 
+[ ![Download](https://api.bintray.com/packages/chinalwb/flipgallery/flipgallery/images/download.svg?version=1.0) ](https://bintray.com/chinalwb/flipgallery/flipgallery/1.0/link)
 
 ### 使用
 
 ```groovy
-TODO 正在上传到 jcenter
+implementation 'com.github.chinalwb:flipgallery:1.0' 
+
+jcenter 正在审核
 ```
 
 
@@ -16,7 +19,7 @@ TODO 正在上传到 jcenter
 ```Kotlin
 // resIds
         var flipGallery = findViewById<FlipGallery>(R.id.flip_gallery)
-        flipGallery.setResIds(arrayOf(
+        flipGallery.withResIds(arrayOf(
             R.drawable.a,
             R.drawable.b,
             R.drawable.c,
@@ -28,7 +31,7 @@ TODO 正在上传到 jcenter
         )).setFlipDuration(300).setFlipIndex(0)
 
 // Glide
-        flipGallery.setUrls(arrayOf(
+        flipGallery.withUrls(arrayOf(
             "http://ww1.sinaimg.cn/large/0065oQSqly1g2pquqlp0nj30n00yiq8u.jpg",
             "https://ww1.sinaimg.cn/large/0065oQSqly1g2hekfwnd7j30sg0x4djy.jpg",
             "https://ws1.sinaimg.cn/large/0065oQSqly1g0ajj4h6ndj30sg11xdmj.jpg",
@@ -39,7 +42,7 @@ TODO 正在上传到 jcenter
         )).setFlipDuration(300).setFlipIndex(3)
 
 // 自动转
-				flipGallery.postDelayed({
+	flipGallery.postDelayed({
             flipGallery.smoothFlipToIndex(0, 7000)
         }, 12000)
 ```
