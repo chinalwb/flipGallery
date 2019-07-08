@@ -1,4 +1,4 @@
-package com.chinalwb.flipgallery.library;
+package com.chinalwb.flipgallerylib;
 
 import android.content.res.Resources;
 import android.graphics.Bitmap;

@@ -1,11 +1,14 @@
-package com.chinalwb.flipgallery.library
+package com.chinalwb.flipgallerylib
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ObjectAnimator
 import android.animation.PropertyValuesHolder
 import android.content.Context
-import android.graphics.*
+import android.graphics.Bitmap
+import android.graphics.Camera
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.graphics.drawable.Drawable
 import android.os.Handler
 import android.os.HandlerThread
@@ -17,13 +20,12 @@ import android.view.VelocityTracker
 import android.view.View
 import android.view.ViewConfiguration
 import com.bumptech.glide.Glide
-import com.bumptech.glide.request.target.BitmapImageViewTarget
 import com.bumptech.glide.request.target.CustomTarget
-import com.bumptech.glide.request.target.CustomViewTarget
-import com.bumptech.glide.request.target.SimpleTarget
 import com.bumptech.glide.request.transition.Transition
-import com.chinalwb.flipgallery.R
-import kotlin.math.*
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.max
+import kotlin.math.min
 
 class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, attributeSet) {
 
@@ -31,7 +33,7 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
         private const val NINETY_DEGREE = 89.99F
     }
 
-    private var flipDuration = 1000L
+    private var flipDuration = 300L
     private var index = 0
     private var max = 0
     private var resIds: Array<Int?> = arrayOfNulls(0)
@@ -114,6 +116,12 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
             invalidate()
         }
 
+    private var flipReachTopText = "当前是第一张图片"
+
+    private var flipReachEndText = "当前是最后一张图片"
+
+    private var flipTextSize = Utils.dp2px(16).toInt()
+
     init {
         // -200 这个z轴高度实在尴尬
         // 因为在计算bitmap rotateX 之后在 X 轴的投影距离遇到了困难
@@ -123,13 +131,13 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
         paint.textAlign = Paint.Align.CENTER
         paint.style = Paint.Style.FILL
         paint.strokeWidth = Utils.dp2px(2)
-        paint.textSize = Utils.dp2px(16)
 
-//        postDelayed({ animationPrev() }, 2000)
-//        postDelayed({ animationNext() }, 5000)
-//        postDelayed({ animationNext() }, 8000)
+        var typedArray = context.obtainStyledAttributes(attributeSet, R.styleable.FlipGallery)
+        flipReachTopText = typedArray.getString(R.styleable.FlipGallery_flipReachTopText)
+        flipReachEndText = typedArray.getString(R.styleable.FlipGallery_flipReachEndText)
+        flipTextSize = typedArray.getDimensionPixelSize(R.styleable.FlipGallery_flipTextSize, flipTextSize)
+        paint.textSize = flipTextSize.toFloat()
     }
-
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
@@ -138,18 +146,15 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
         cy = height / 2F
     }
 
+
+
     override fun onDraw(canvas: Canvas?) {
         super.onDraw(canvas)
 
         if (this.max == 0) {
             paint.alpha = 255
-            canvas!!.drawText("尚未设置数据源", cx, cy, paint)
+            canvas!!.drawText("You haven't set data source yet", cx, cy, paint)
             return
-        }
-
-        if (index == 0 && upDegree1 < 0) {
-            paint.alpha = 255
-            canvas!!.drawText("当前是第一张图片", cx, cy / 2, paint)
         }
 
         drawPreviousBitmap(canvas)
@@ -158,9 +163,14 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
 
         drawNextBitmap(canvas)
 
+        if (index == 0 && upDegree1 < 0) {
+            paint.alpha = 255
+            canvas!!.drawText(flipReachTopText, cx, cy / 2, paint)
+        }
+
         if (index == max - 1 && downDegree1 > 45) {
             paint.alpha = 255
-            canvas!!.drawText("当前是最后一张图片", cx, cy + cy / 2, paint)
+            canvas!!.drawText(flipReachEndText, cx, cy + cy / 2, paint)
         }
     }
 
@@ -170,7 +180,7 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
         }
         // bitmap previous
         val previousBitmap = loadBitmap(index - 1) ?: return
-        var top1 = (height - previousBitmap!!.height) / 2F
+        val top1 = (height - previousBitmap!!.height) / 2F
         if (abs(upDegree1) > 0 || abs(downDegree1) > 90) {
             paint.alpha = upAlpha0
             canvas!!.save()
@@ -210,7 +220,7 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
         // bitmap current upper
         paint.alpha = upAlpha1
         val currentBitmap = loadBitmap(index) ?: return
-        var top = (height - currentBitmap!!.height) / 2F
+        val top = (height - currentBitmap!!.height) / 2F
 
         if (upDegree1 < -NINETY_DEGREE) {
             upDegree1 = -90F
@@ -232,7 +242,7 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
             paint.alpha = downAlpha1
             var bottomTopOffset = 0F
             if (downDegree0 < 90) {
-                var halfHeight = if (index > 0) {
+                val halfHeight = if (index > 0) {
                     loadBitmap(index - 1)!!.height / 2F
                 } else {
                     cy
@@ -258,7 +268,7 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
         }
         // bitmap next
         val nextBitmap = loadBitmap(index + 1) ?: return
-        var top = (height - nextBitmap!!.height) / 2F
+        val top = (height - nextBitmap!!.height) / 2F
         if (downDegree1 > NINETY_DEGREE) {
             paint.alpha = upAlpha2
             canvas!!.save()
@@ -276,7 +286,7 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
         // bitmap next
         // bitmap next lower
         if (downDegree1 > 0) {
-            var halfHeight = loadBitmap(index)!!.height / 2F
+            val halfHeight = loadBitmap(index)!!.height / 2F
             var bottomTopOffset = halfHeight * cos(Math.toRadians(abs(downDegree1.toDouble()))).toFloat()
             if (bottomTopOffset < 0) {
                 bottomTopOffset = 0F
@@ -369,7 +379,7 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
                     1000, viewConfiguration
                         .scaledMaximumFlingVelocity.toFloat()
                 )
-                var yVelocity = velocityTracker.yVelocity
+                val yVelocity = velocityTracker.yVelocity
                 if (abs(yVelocity) < viewConfiguration.scaledMinimumFlingVelocity) {
                     if (abs(upDegree1) > NINETY_DEGREE) {
                         animationPrev()
@@ -600,9 +610,9 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
         if (this.index == targetIndex) {
             return
         }
-        var indexOffset = targetIndex - this.index
-        var interval = (duration / abs(indexOffset).toFloat()).toLong()
-        var currentFlipDuration = this.flipDuration
+        val indexOffset = targetIndex - this.index
+        val interval = (duration / abs(indexOffset).toFloat()).toLong()
+        val currentFlipDuration = this.flipDuration
 
         this.flipDuration = interval - 50
         fun doFlip() {
@@ -643,13 +653,13 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
         this.smoothFlipToIndex(max - 1, duration)
     }
 
-    fun setResIds(resIds: Array<Int>): FlipGallery {
+    fun withResIds(resIds: Array<Int>): FlipGallery {
         this.resIds = resIds as Array<Int?>
         this.max = resIds.size
         return this
     }
 
-    fun setUrls(urls: Array<String>): FlipGallery {
+    fun withUrls(urls: Array<String>): FlipGallery {
         this.urls = urls as Array<String?>
         this.max = urls.size
         return this
