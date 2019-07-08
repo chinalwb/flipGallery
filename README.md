@@ -3,6 +3,22 @@
 
 [ ![Download](https://api.bintray.com/packages/chinalwb/flipgallery/flipgallery/images/download.svg) ](https://bintray.com/chinalwb/flipgallery/flipgallery/_latestVersion)
 
+
+
+### 简单介绍一下
+
+这是一个简单的画廊实现. 受到 Flipboard App 的样式启发,总想做一个类似的效果试试. 目前实现原理特别简单, 一个自定义 view 加上内部维护的三个 bitmap 对象, 加上手势控制(ACTION_MOVE 和 fling — VelocityTracker)以及 camera.rotateX (横向翻转效果也很容易, 如果有需要我可以做一下 你也可以 pull request 哦). 翻上一页的时候把当前图片的上半部分往下翻转, 同时把上一页的下半部分(默认 180°的翻转)往回翻转同样的角度; 同理翻下一页的时候, 把当前图片的下半部分往上翻转以及下一页图片的上半部分(默认 -180°的翻转)往回翻转同样的角度. 松开的时候根据 velocityTracker 的 yVelocity, 用这个数值跟 viewConfiguration.scaledMininumFlingVelocity 比较, 如果大于临界值则执行翻转的属性动画, 否则执行复原的属性动画, 同时如果速度不够则判断旋转角度是否大于 90 度. (以上所有知识点来自 HencoderPlus)
+
+- 目前支持resId 以及 Glide 两种设置数据源的方式. 内部 LruCache 默认维护 10 个最近使用的 bitmap
+- `FlipGalleryListener`提供`onReachTop` / `onReachEnd` 两个回调
+- `setFlipDuration(duration: Long)` 设置翻页动画和复原动画的完成时间
+- `setFlipIndex(index: Int)` 设置默认显示第几张图片
+- `smoothFlipToIndex(index: Int, duration: Long)` 动画的方式在指定时间段内从当前显示的图片滑动到指定的图片
+- `smoothFliptToStart` / `smoothFlipToEnd` 是相应的两个快捷方法
+- 三个自定义 view 属性: `flipTextSize` / `flipReachTopText` / `flipReachEndText`
+
+
+
 ### 使用
 
 ```groovy
@@ -16,6 +32,16 @@ jcenter 正在审核
 ### 示例代码:
 
 ```Kotlin
+// XML 中
+<com.chinalwb.flipgallerylib.FlipGallery
+            android:id="@+id/flip_gallery"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:flipTextSize="20sp"
+            app:flipReachTopText="This is the first page"
+            app:flipReachEndText="终于让你发现了我的底线"
+    />
+
 // resIds
         var flipGallery = findViewById<FlipGallery>(R.id.flip_gallery)
         flipGallery.withResIds(arrayOf(
