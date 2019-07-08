@@ -1,8 +1,7 @@
 
 ![FlipGallery](./resources/adv.png)
 
-
-[ ![Download](https://api.bintray.com/packages/chinalwb/flipgallery/flipgallery/images/download.svg?version=1.0) ](https://bintray.com/chinalwb/flipgallery/flipgallery/1.0/link)
+[ ![Download](https://api.bintray.com/packages/chinalwb/flipgallery/flipgallery/images/download.svg) ](https://bintray.com/chinalwb/flipgallery/flipgallery/_latestVersion)
 
 ### 使用
 
