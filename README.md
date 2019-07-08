@@ -23,8 +23,6 @@
 
 ```groovy
 implementation 'com.github.chinalwb:flipgallery:1.0' 
-
-jcenter 正在审核
 ```
 
 
