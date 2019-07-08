@@ -29,10 +29,16 @@ import kotlin.math.min
 
 class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, attributeSet) {
 
+    interface FlipGalleryListener {
+        fun onReachTop()
+        fun onReachEnd()
+    }
+
     companion object {
         private const val NINETY_DEGREE = 89.99F
     }
 
+    var flipGalleryListener: FlipGalleryListener? = null
     private var flipDuration = 300L
     private var index = 0
     private var max = 0
@@ -446,6 +452,11 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
 
     private var prevAnimatorResetListener = object : AnimatorListenerAdapter() {
         override fun onAnimationEnd(animation: Animator?) {
+            if (index == 0) {
+                if (flipGalleryListener != null) {
+                    flipGalleryListener!!.onReachTop()
+                }
+            }
             reset()
         }
     }
@@ -461,6 +472,11 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
 
     private var nextAnimatorListenerReset = object : AnimatorListenerAdapter() {
         override fun onAnimationEnd(animation: Animator?) {
+            if (index == max - 1) {
+                if (flipGalleryListener != null) {
+                    flipGalleryListener!!.onReachEnd()
+                }
+            }
             reset()
         }
     }

@@ -2,6 +2,7 @@ package com.chinalwb.flipgallery
 
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
+import android.widget.Toast
 import com.chinalwb.flipgallerylib.FlipGallery
 
 class MainActivity : AppCompatActivity() {
@@ -32,8 +33,18 @@ class MainActivity : AppCompatActivity() {
 //            "https://ws1.sinaimg.cn/large/0065oQSqgy1fxno2dvxusj30sf10nqcm.jpg"
 //        )).setFlipDuration(300).setFlipIndex(3)
 
-        flipGallery.postDelayed({
-            flipGallery.smoothFlipToIndex(0, 7000)
-        }, 12000)
+//        flipGallery.postDelayed({
+//            flipGallery.smoothFlipToIndex(0, 7000)
+//        }, 12000)
+
+        flipGallery.flipGalleryListener = object : FlipGallery.FlipGalleryListener {
+            override fun onReachTop() {
+                Toast.makeText(this@MainActivity, "Reach top!", Toast.LENGTH_LONG).show()
+            }
+
+            override fun onReachEnd() {
+                Toast.makeText(this@MainActivity, "Reach end!", Toast.LENGTH_LONG).show()
+            }
+        }
     }
 }
