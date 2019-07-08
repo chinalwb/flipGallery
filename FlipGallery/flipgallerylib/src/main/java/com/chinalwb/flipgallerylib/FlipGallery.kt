@@ -39,7 +39,7 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
     }
 
     var flipGalleryListener: FlipGalleryListener? = null
-    private var flipDuration = 300L
+    private var flipDuration = 500L
     private var index = 0
     private var max = 0
     private var resIds: Array<Int?> = arrayOfNulls(0)
@@ -350,9 +350,6 @@ class FlipGallery(context: Context, attributeSet: AttributeSet) : View(context, 
                     }
                     if (index == 0) {
                         upDegree1 = max(upDegree1, -60F)
-                    }
-                    if (upDegree1 < -90) {
-                        upDegree1 = -90F
                     }
                 }
 
