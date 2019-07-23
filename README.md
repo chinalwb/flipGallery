@@ -71,6 +71,7 @@ implementation 'com.github.chinalwb:flipgallery:1.1'
 ```
 
 
+### 图片来自干货集中营 ( ‵▽′)ψ
 ![manually](./resources/manually.gif)
 
 --------
