@@ -64,29 +64,12 @@ implementation 'com.github.chinalwb:flipgallery:1.1'
             "https://ws1.sinaimg.cn/large/0065oQSqgy1fxno2dvxusj30sf10nqcm.jpg"
         )).setFlipDuration(300).setFlipIndex(3)
 
-// 自动转
+// 可以 自动转 也可以手动操作
 	flipGallery.postDelayed({
             flipGallery.smoothFlipToIndex(0, 7000)
         }, 12000)
 ```
 
-
-
-
-
-### 可以这样玩 resIds
-
-![resIds](./resources/resIds.gif)
-
-
-
-### 也可以这样玩 glide (图片来自干货集中营)
-
-![glide](./resources/glide.gif)
-
-
-
-### 还可以手动操作
 
 ![manually](./resources/manually.gif)
 
